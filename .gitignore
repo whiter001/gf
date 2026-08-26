@@ -1,0 +1,10 @@
+
+# AgentFlow runner 内部产物（last-lint.log / pr-report.md 等），禁止 commit
+.agentflow/
+
+# Playwright MCP 页面快照（runner 的 playwright_verify 运行产物），禁止 commit
+.playwright-mcp/
+
+# 构建产物（v -o gf src/ 与 v test src/ 生成），禁止 commit
+/gf
+src/mock_test
