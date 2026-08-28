@@ -192,10 +192,14 @@ fn sanitize_url(url string) string {
 	return base + '?' + parts.join('&')
 }
 
-// unsupported_error builds the GfError for Gitee CI which has no stable public API.
+// unsupported_error builds the GfError for features not supported on a platform.
 fn unsupported_error() GfError {
+	return unsupported_error_msg('this feature is not supported on this platform')
+}
+
+fn unsupported_error_msg(msg string) GfError {
 	return GfError{
 		kind:    'unsupported'
-		message: 'Gitee CI (Gitee Go) does not expose a stable public API; the ci commands are not supported on Gitee'
+		message: msg
 	}
 }

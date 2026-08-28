@@ -4,14 +4,15 @@ import os
 
 // Config is the fully resolved runtime configuration.
 struct Config {
-	platform Platform
-	host     string
-	owner    string
-	repo     string
-	path     string
-	path_enc string
-	api_base string
-	token    string
+	platform   Platform
+	host       string
+	owner      string
+	repo       string
+	path       string
+	path_enc   string
+	api_base   string
+	token      string
+	project_id int
 }
 
 // resolve_config builds a Config from CLI flags, the environment and the git remote.
@@ -55,7 +56,7 @@ fn resolve_config(f Flags) !Config {
 		}
 		host = platform_host(platform)
 	} else {
-		ref := detect_remote_repo() or {
+		ref := detect_remote_repo(platform) or {
 			return GfError{
 				kind:    'config'
 				message: err.msg()
@@ -66,7 +67,9 @@ fn resolve_config(f Flags) !Config {
 		full_path = ref.path
 		path_enc = ref.path_enc
 		if platform_set {
-			host = platform_host(platform)
+			// use the real host from the remote; platform_host is only a fallback
+			// for the --repo case (no git remote).
+			host = ref.host
 		} else {
 			platform = ref.platform
 			host = ref.host
@@ -82,14 +85,15 @@ fn resolve_config(f Flags) !Config {
 	token := resolve_token(platform, f.token)
 
 	return Config{
-		platform: platform
-		host:     host
-		owner:    owner
-		repo:     repo
-		path:     full_path
-		path_enc: path_enc
-		api_base: api_base
-		token:    token
+		platform:   platform
+		host:       host
+		owner:      owner
+		repo:       repo
+		path:       full_path
+		path_enc:   path_enc
+		api_base:   api_base
+		token:      token
+		project_id: f.project_id
 	}
 }
 
@@ -103,7 +107,7 @@ fn token_env_names(p Platform) []string {
 }
 
 // resolve_token resolves the API token with this precedence:
-// platform specific env var > GF_TOKEN > --token flag.
+// platform specific env var > GF_TOKEN > ~/.gf/config file > --token flag.
 fn resolve_token(p Platform, flag_token string) string {
 	for name in token_env_names(p) {
 		v := os.getenv(name)
@@ -115,5 +119,44 @@ fn resolve_token(p Platform, flag_token string) string {
 	if v != '' {
 		return v
 	}
+	cfg_tok := read_config_token(p)
+	if cfg_tok != '' {
+		return cfg_tok
+	}
 	return flag_token
+}
+
+// read_config_token reads the token from ~/.gf/config for the given platform.
+fn read_config_token(p Platform) string {
+	home := os.home_dir()
+	if home == '' {
+		return ''
+	}
+	cfg_path := os.join_path(home, '.gf', 'config')
+	if !os.exists(cfg_path) {
+		return ''
+	}
+	content := os.read_file(cfg_path) or { return '' }
+	platform_key := platform_name(p)
+	// support both "gitlab = token" and '"gitlab": "token"' formats
+	for line in content.split('\n') {
+		mut trimmed := line.trim_space()
+		if trimmed == '' || trimmed.starts_with('#') {
+			continue
+		}
+		if trimmed.contains('=') {
+			// key = value format
+			parts := trimmed.split_nth('=', 2)
+			if parts[0].trim_space() == platform_key {
+				return parts[1].trim_space().trim('"')
+			}
+		} else if trimmed.contains(':') {
+			// JSON-like "key": "value" format
+			parts := trimmed.split_nth(':', 2)
+			if parts[0].trim_space().trim('"') == platform_key {
+				return parts[1].trim_space().trim('"')
+			}
+		}
+	}
+	return ''
 }

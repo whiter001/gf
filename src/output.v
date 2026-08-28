@@ -38,6 +38,14 @@ struct HumanItem {
 	tag     string @[json: 'tag_name']
 	branch  string @[json: 'head_branch']
 	ref     string @[json: 'ref']
+	description string @[json: 'description']
+	color   string @[json: 'color']
+	full_name string @[json: 'full_name']
+	stargazers_count int @[json: 'stargazers_count']
+	forks_count int @[json: 'forks_count']
+	filename string @[json: 'filename']
+	path    string @[json: 'path']
+	updated_at string @[json: 'updated_at']
 }
 
 // Ctx carries the shared per-command state.
@@ -255,6 +263,40 @@ fn item_line(kind string, it HumanItem) string {
 			} else {
 				'${state}\t${url}'
 			}
+		}
+		'label' {
+			color := if it.color != '' { '#${it.color}' } else { '' }
+			'${title}\t${color}\t${it.description}'
+		}
+		'gist' {
+			if num > 0 {
+				'#${num}\t${state}\t${title}\t${url}'
+			} else {
+				'${state}\t${title}\t${url}'
+			}
+		}
+		'milestone' {
+			if num > 0 {
+				'#${num}\t${state}\t${title}'
+			} else {
+				'${state}\t${title}'
+			}
+		}
+		'secret' {
+			'${title}'
+		}
+		'workflow' {
+			if num > 0 {
+				'${num}\t${title}\t${it.path}'
+			} else {
+				'${title}\t${it.path}'
+			}
+		}
+		'search' {
+			'${title}\t${url}'
+		}
+		'repo' {
+			'${it.full_name}\t${state}\t${it.description}'
 		}
 		else {
 			'${state}\t${title}\t${url}'

@@ -22,7 +22,8 @@ struct RepoRef {
 }
 
 // detect_remote_repo runs `git remote get-url origin` in the current directory.
-fn detect_remote_repo() !RepoRef {
+// `platform_hint` is the already-parsed --platform flag value (.none if not provided).
+fn detect_remote_repo(platform_hint ?Platform) !RepoRef {
 	res := os.execute('git remote get-url origin')
 	if res.exit_code != 0 {
 		return error('no "origin" remote found: ${res.output}')
@@ -31,7 +32,7 @@ fn detect_remote_repo() !RepoRef {
 	if url == '' {
 		return error('no "origin" remote found (empty output)')
 	}
-	return parse_remote_url(url)
+	return parse_remote_url(url, platform_hint)
 }
 
 // parse_remote_url parses a git remote URL in any of the common formats:
@@ -39,7 +40,9 @@ fn detect_remote_repo() !RepoRef {
 //   - https:    https://github.com/owner/repo.git
 //   - ssh:      ssh://git@github.com/owner/repo.git
 //   - git:      git://github.com/owner/repo.git
-fn parse_remote_url(url string) !RepoRef {
+// `platform_hint` is used when the host cannot be recognized (self-hosted instances);
+// if `.none`, the host is used to infer the platform (which may fail for unknown hosts).
+fn parse_remote_url(url string, platform_hint ?Platform) !RepoRef {
 	raw := url.trim_space()
 	if raw == '' {
 		return error('empty remote url')
@@ -75,7 +78,11 @@ fn parse_remote_url(url string) !RepoRef {
 	if owner == '' || repo == '' {
 		return error('invalid remote url "${raw}": path must contain owner/repo')
 	}
-	platform := platform_from_host(hostname)!
+	platform := if platform_hint != none {
+		platform_hint
+	} else {
+		platform_from_host(hostname)!
+	}
 	api_base := default_api_base(platform, host, hostname)
 	return RepoRef{
 		owner:    owner

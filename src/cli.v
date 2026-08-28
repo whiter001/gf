@@ -3,14 +3,15 @@ module main
 // Flags holds every CLI option.
 struct Flags {
 mut:
-	json     bool
-	quiet    bool
-	repo     string
-	platform string
-	api_base string
-	token    string
-	help     bool
-	version  bool
+	json       bool
+	quiet      bool
+	repo       string
+	platform   string
+	api_base   string
+	token      string
+	project_id int
+	help       bool
+	version    bool
 	// command options
 	state      string
 	limit      int
@@ -27,6 +28,35 @@ mut:
 	ref        string
 	workflow   string
 	run        string
+	// repo flags
+	clone       bool
+	create      bool
+	fork        bool
+	sync        bool
+	private     bool
+	description string
+	homepage   string
+	// api flags
+	api_path   string
+	// search flags
+	search_type  string
+	search_query string
+	// label flags
+	label_name  string
+	label_color string
+	label_desc  string
+	// gist flags
+	gist_public bool
+	gist_file   string
+	// milestone flags
+	ms_title    string
+	ms_desc     string
+	ms_due_date string
+	// secret flags
+	secret_name string
+	secret_value string
+	// workflow flags
+	workflow_file string
 }
 
 // Parsed is the result of argument parsing.
@@ -40,18 +70,19 @@ mut:
 
 // global_flags are accepted anywhere on the command line.
 const global_flags = {
-	'-j':         'json'
-	'--json':     'json'
-	'-q':         'quiet'
-	'--quiet':    'quiet'
-	'-R':         'repo'
-	'--repo':     'repo'
-	'--platform': 'platform'
-	'--api-base': 'api_base'
-	'--token':    'token'
-	'-h':         'help'
-	'--help':     'help'
-	'--version':  'version'
+	'-j':             'json'
+	'--json':         'json'
+	'-q':             'quiet'
+	'--quiet':        'quiet'
+	'-R':             'repo'
+	'--repo':         'repo'
+	'--platform':     'platform'
+	'--api-base':     'api_base'
+	'--token':        'token'
+	'--project-id':   'project_id'
+	'-h':             'help'
+	'--help':         'help'
+	'--version':      'version'
 }
 
 // option_flags are command specific flags that take a value.
@@ -71,6 +102,33 @@ const option_flags = {
 	'--ref':        'ref'
 	'--workflow':   'workflow'
 	'--run':        'run'
+	// repo flags
+	'--clone':       'clone'
+	'--create':      'create'
+	'--fork':        'fork'
+	'--sync':        'sync'
+	'--private':     'private'
+	'--description': 'description'
+	'--homepage':    'homepage'
+	// api flags
+	'--path':        'api_path'
+	// search flags
+	'--type':        'search_type'
+	'--query':       'search_query'
+	// label flags
+	'--label-name':  'label_name'
+	'--color':       'label_color'
+	// gist flags
+	'--file':        'gist_file'
+	'--gist-description': 'name'
+	// milestone flags
+	'--milestone-title': 'ms_title'
+	'--milestone-desc':  'ms_desc'
+	'--due-date':        'ms_due_date'
+	// secret flags
+	'--secret-name': 'secret_name'
+	'--value':       'secret_value'
+	// workflow flags
 }
 
 // bool_flags are flags that do not take a value.
@@ -172,6 +230,12 @@ fn set_str_flag(mut f Flags, field string, value string) string {
 		'token' {
 			f.token = value
 		}
+		'project_id' {
+			if value == '' || !all_digits(value) {
+				return 'invalid --project-id "${value}": expected a number'
+			}
+			f.project_id = value.int()
+		}
 		'state' {
 			f.state = value
 		}
@@ -220,6 +284,48 @@ fn set_str_flag(mut f Flags, field string, value string) string {
 		'run' {
 			f.run = value
 		}
+		'description' {
+			f.description = value
+		}
+		'homepage' {
+			f.homepage = value
+		}
+		'api_path' {
+			f.api_path = value
+		}
+		'search_type' {
+			f.search_type = value
+		}
+		'search_query' {
+			f.search_query = value
+		}
+		'label_color' {
+			f.label_color = value
+		}
+		'label_name' {
+			f.label_name = value
+		}
+		'gist_file' {
+			f.gist_file = value
+		}
+		'ms_title' {
+			f.ms_title = value
+		}
+		'ms_desc' {
+			f.ms_desc = value
+		}
+		'ms_due_date' {
+			f.ms_due_date = value
+		}
+		'secret_name' {
+			f.secret_name = value
+		}
+		'secret_value' {
+			f.secret_value = value
+		}
+		'workflow_file' {
+			f.workflow_file = value
+		}
 		else {
 			return 'unknown flag "${field}"'
 		}
@@ -250,6 +356,14 @@ Commands:
   issue             issues
   release           releases
   ci                CI runs / pipelines
+  repo              repository operations (clone, create, fork, sync)
+  api               generic API caller (--method, --path, --body)
+  search            search repositories, code, commits, issues
+  label             manage labels
+  gist              code snippets (GitHub) / snippets (GitLab)
+  milestone         manage milestones
+  secret            manage CI/CD secrets (GitLab: variables)
+  workflow          GitHub Actions workflows (GitHub only)
   version           show version
 
 Subcommands:
@@ -269,6 +383,37 @@ Subcommands:
     status [--run ID]            (latest run when --run is omitted)
     run [--ref BRANCH] [--workflow FILE]
     logs <id>                    (github: run id, saves a zip; gitlab: job id, prints trace)
+  repo:
+    clone <src> [dir]           git clone a repository
+    create [--private] [--description T] [--homepage URL]
+    fork                         fork the current repository
+    sync                         sync a forked repository
+  api:
+    --method GET|POST|PUT|PATCH|DELETE --path /api/path [--body TEXT]
+  search:
+    --type repositories|code|commits|issues --query <text>
+  label:
+    list
+    create --name N --color RRGGBB [--description T]
+    delete <name>
+  gist:
+    list [--limit N]
+    show <id>
+    create [--public] --file <path> [--description T]
+    delete <id>
+  milestone:
+    list [--state open|closed|all]
+    show <number>
+    create --title T [--description T] [--due-date YYYY-MM-DD]
+    close <number>
+  secret:
+    list
+    create --name N --value V
+    delete <name>
+  workflow:
+    list
+    view <workflow-file>
+    run <workflow-file> [--ref BRANCH]
 
 Notes:
   --body-file - / --notes-file - read the content from stdin.

@@ -52,6 +52,30 @@ fn dispatch(args []string) CmdResult {
 		'ci' {
 			return cmd_ci(parsed)
 		}
+		'repo' {
+			return cmd_repo(parsed)
+		}
+		'api' {
+			return cmd_api(parsed)
+		}
+		'search' {
+			return cmd_search(parsed)
+		}
+		'label' {
+			return cmd_label(parsed)
+		}
+		'gist' {
+			return cmd_gist(parsed)
+		}
+		'milestone' {
+			return cmd_milestone(parsed)
+		}
+		'secret' {
+			return cmd_secret(parsed)
+		}
+		'workflow' {
+			return cmd_workflow(parsed)
+		}
 		else {
 			return usage_with(parsed, 'unknown command "${parsed.cmd}"')
 		}

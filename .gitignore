@@ -7,4 +7,9 @@
 
 # 构建产物（v -o gf src/ 与 v test src/ 生成），禁止 commit
 /gf
+src/gf
+src/src
 src/mock_test
+.gf.v3cc.*
+src/.gf.v3cc.*
+src/.src.v3cc.*

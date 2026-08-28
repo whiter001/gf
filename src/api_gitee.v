@@ -1,6 +1,7 @@
 module main
 
 import json2
+import net.http
 import net.urllib
 
 // Endpoint implementations for Gitee (gitee.com/api/v5).
@@ -138,5 +139,122 @@ fn (ad Adapter) gitee_release_create(tag string, name string, notes string) !Api
 		'tag_name': tag
 		'name':     name
 		'body':     notes
+	}))
+}
+
+// --- repo ---
+
+fn (ad Adapter) gitee_repo_clone_url() !ApiResponse {
+	path := '${gitee_repo(ad)}'
+	return ad.client.get(path, {})
+}
+
+fn (ad Adapter) gitee_repo_create(owner string, is_private bool, description string, homepage string) !ApiResponse {
+	path := '/user/repos'
+	mut body := {
+		'name':    owner
+		'private': if is_private { 'true' } else { 'false' }
+	}
+	if description != '' {
+		body['description'] = description
+	}
+	if homepage != '' {
+		body['homepage'] = homepage
+	}
+	return ad.client.send(.post, path, {}, json_body(body))
+}
+
+fn (ad Adapter) gitee_repo_fork() !ApiResponse {
+	path := '${gitee_repo(ad)}/forks'
+	return ad.client.send(.post, path, {}, '{}')
+}
+
+fn (ad Adapter) gitee_repo_sync() !ApiResponse {
+	path := '${gitee_repo(ad)}/sync'
+	return ad.client.send(.post, path, {}, '{}')
+}
+
+// --- api ---
+
+fn (ad Adapter) gitee_api_call(method string, path string, body string) !ApiResponse {
+	mut m := http.Method.get
+	um := method.to_upper()
+	if um == 'POST' {
+		m = http.Method.post
+	} else if um == 'PUT' {
+		m = http.Method.put
+	} else if um == 'PATCH' {
+		m = http.Method.patch
+	} else if um == 'DELETE' {
+		m = http.Method.delete
+	}
+	return ad.client.send(m, path, {}, body)
+}
+
+// --- search ---
+
+fn (ad Adapter) gitee_search(query string, search_type string, limit int) !ApiResponse {
+	path := '/search/repositories'
+	return ad.client.get(path, {
+		'search_key': query
+		'per_page':  '${limit}'
+	})
+}
+
+// --- label ---
+
+fn (ad Adapter) gitee_label_list() !ApiResponse {
+	path := '${gitee_repo(ad)}/labels'
+	return ad.client.get(path, {})
+}
+
+fn (ad Adapter) gitee_label_create(name string, color string, description string) !ApiResponse {
+	path := '${gitee_repo(ad)}/labels'
+	mut body := {
+		'name':  name
+		'color': color
+	}
+	if description != '' {
+		body['description'] = description
+	}
+	return ad.client.send(.post, path, {}, json_body(body))
+}
+
+fn (ad Adapter) gitee_label_delete(name string) !ApiResponse {
+	path := '${gitee_repo(ad)}/labels/${urllib.path_escape(name)}'
+	return ad.client.send(.delete, path, {}, '')
+}
+
+// --- milestone ---
+
+fn (ad Adapter) gitee_milestone_list(state string, limit int) !ApiResponse {
+	path := '${gitee_repo(ad)}/milestones'
+	return ad.client.get(path, {
+		'state':    state
+		'per_page': '${limit}'
+	})
+}
+
+fn (ad Adapter) gitee_milestone_show(num int) !ApiResponse {
+	path := '${gitee_repo(ad)}/milestones/${num}'
+	return ad.client.get(path, {})
+}
+
+fn (ad Adapter) gitee_milestone_create(title string, description string, due_date string) !ApiResponse {
+	path := '${gitee_repo(ad)}/milestones'
+	mut body := {'title': title}
+	if description != '' {
+		body['description'] = description
+	}
+	if due_date != '' {
+		body['due_date'] = due_date
+	}
+	return ad.client.send(.post, path, {}, json_body(body))
+}
+
+fn (ad Adapter) gitee_milestone_close(num int) !ApiResponse {
+	path := '${gitee_repo(ad)}/milestones/${num}'
+	return ad.client.send(.patch, path, {}, json_body({
+		'state': 'closed'
 	}))
 }
