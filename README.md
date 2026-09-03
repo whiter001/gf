@@ -8,12 +8,14 @@
 
 ## 构建
 
-```sh
-v -o gf src/          # 生成可执行文件 gf
+```powershell
+.\build.ps1          # 构建并将 gf.exe 链接到 D:\public\gf.exe
 v test src/           # 运行单元测试与本地 mock 集成测试
 ```
 
 > 当前环境若遇到 v3 编译器内存限制，可显式使用稳定编译器：`v -old-compiler -o gf src/`。
+
+如需只生成仓库内的可执行文件，也可以运行 `v -o gf src/`。
 
 ## 用法
 
